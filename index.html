@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#6c5ce7" />
+  <title>Multiplication Quest</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar card">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">⚔️</div>
+        <div>
+          <h1>Multiplication Quest</h1>
+          <p>Battle goofy monsters. Master your multiplication facts.</p>
+        </div>
+      </div>
+      <div class="profile">
+        <div id="profileHero" class="profile-hero" aria-hidden="true">🐉</div>
+        <div class="profile-copy">
+          <strong id="profileName">Baby Dragon</strong>
+          <span>Level <span id="levelValue">1</span> · <span id="xpValue">0</span> XP</span>
+        </div>
+        <div class="xp-box" aria-label="Experience progress">
+          <div class="meter-label"><span>XP</span><span id="xpNext">250 XP</span></div>
+          <div class="meter"><div id="xpBar" class="meter-fill xp-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+    </header>
+
+    <section id="homeScreen" class="screen stack">
+      <section class="card section-card">
+        <div class="section-heading">
+          <div>
+            <h2>Choose Your Hero</h2>
+            <p>Heroes play the same — pick your favorite.</p>
+          </div>
+          <button id="resetProgressBtn" class="button button-ghost button-small" type="button">Reset progress</button>
+        </div>
+        <div id="heroGrid" class="hero-grid"></div>
+      </section>
+
+      <section class="card section-card">
+        <div class="section-heading adventure-heading">
+          <div>
+            <h2>Adventure Path</h2>
+            <p>Beat each boss to unlock the next world. Completed worlds can be replayed anytime.</p>
+          </div>
+          <button id="continueBtn" class="button button-primary" type="button">▶ Continue Adventure</button>
+        </div>
+        <div id="worldGrid" class="world-grid"></div>
+      </section>
+    </section>
+
+    <section id="battleScreen" class="screen stack hidden" aria-live="polite">
+      <div class="battle-topline">
+        <button id="battleBackBtn" class="button button-ghost" type="button">← World map</button>
+        <div class="battle-title">
+          <strong id="battleWorld">🌼 Starter Plains</strong>
+          <span id="battleStageLabel">Battle 1 of 3</span>
+        </div>
+        <div id="stageDots" class="stage-dots" aria-label="World progress"></div>
+      </div>
+
+      <section class="card battle-stage">
+        <div class="health-grid">
+          <div>
+            <div class="health-label"><strong id="heroBattleName">Baby Dragon</strong><span id="shieldStatus">🛡️ —</span></div>
+            <div class="meter hp-meter"><div id="playerHpBar" class="meter-fill player-hp" style="width:100%"></div></div>
+            <div id="playerHpText" class="small-muted">100 / 100 HP</div>
+          </div>
+          <div>
+            <div class="health-label"><strong id="enemyName">Bouncy Slime</strong><span id="enemyTag">Enemy</span></div>
+            <div class="meter hp-meter"><div id="enemyHpBar" class="meter-fill enemy-hp" style="width:100%"></div></div>
+            <div id="enemyHpText" class="small-muted">100 / 100 HP</div>
+          </div>
+        </div>
+
+        <div class="arena">
+          <div class="fighter-wrap">
+            <div id="heroAvatar" class="fighter" aria-label="Player hero">🐉</div>
+            <div id="heroAttackName" class="fighter-caption">Fire Pop</div>
+          </div>
+          <div id="battleEffect" class="battle-effect">VS</div>
+          <div class="fighter-wrap">
+            <div id="enemyAvatar" class="fighter" aria-label="Enemy">🟢</div>
+            <div id="enemyMood" class="fighter-caption">looks suspiciously bouncy</div>
+          </div>
+          <div id="damageLayer" class="damage-layer" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <div class="stats-grid">
+        <div class="card stat-card"><span>Streak</span><strong id="streakValue">🔥 0</strong></div>
+        <div class="card stat-card"><span>Battle XP</span><strong id="battleXp">0</strong></div>
+        <div class="card stat-card"><span>Questions</span><strong id="questionCount">0</strong></div>
+      </div>
+
+      <section class="card question-card">
+        <div id="battleMessage" class="battle-message">Choose the correct answer!</div>
+        <div id="problemText" class="problem">7 × 8</div>
+        <div id="choiceGrid" class="choice-grid" role="group" aria-label="Answer choices"></div>
+        <div class="keyboard-hint">Keyboard: press 1–4</div>
+      </section>
+    </section>
+
+    <section id="resultScreen" class="screen stack hidden">
+      <section class="card result-card">
+        <div id="resultEmoji" class="result-emoji">🏆</div>
+        <h2 id="resultTitle">Victory!</h2>
+        <p id="resultText">Bouncy Slime has been thoroughly bounced.</p>
+        <div class="result-grid">
+          <div class="result-stat"><span>Accuracy</span><strong id="resultAccuracy">100%</strong></div>
+          <div class="result-stat"><span>Best streak</span><strong id="resultStreak">0</strong></div>
+          <div class="result-stat"><span>XP earned</span><strong id="resultXp">+0</strong></div>
+        </div>
+      </section>
+      <div class="result-actions">
+        <button id="primaryResultBtn" class="button button-primary" type="button">Next battle →</button>
+        <button id="retryBtn" class="button button-ghost hidden" type="button">Retry battle</button>
+        <button id="mapBtn" class="button button-ghost" type="button">World map</button>
+      </div>
+    </section>
+  </main>
+  <script src="app.js" defer></script>
+</body>
+</html>
