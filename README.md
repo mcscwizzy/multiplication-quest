@@ -1,10 +1,8 @@
-# Multiplication Quest v2
+# Multiplication Quest v3
 
-A kid-friendly multiplication battle adventure built with vanilla HTML, CSS, and JavaScript.
+A kid-friendly multiplication battle adventure built with vanilla HTML, CSS, and JavaScript. v3 adds **Advanced Quest**, an unlockable second campaign that teaches the classic stacked multiplication algorithm for 2–4 digit problems.
 
 ## Run with Docker Compose
-
-From this directory:
 
 ```bash
 docker compose up --build
@@ -14,54 +12,82 @@ Then open:
 
 - http://localhost:8080
 
-Stop the app with:
+Stop with:
 
 ```bash
 docker compose down
 ```
 
-## v2 game features
+## Campaign 1 — Battle Adventure
 
-- Four heroes with unique charged Power Moves
-- Untimed special Power Questions to activate abilities
-- Six multiplication worlds with distinct color schemes and battle atmosphere
-- Progressive multiplication tables through ×1–×12
-- Random 1–3 enemy encounters in later worlds
-- Manual enemy targeting
-- Visible d6 enemy-side roll after missed normal questions
-- Unique d6 tables for every boss
-- Boss minion summons with a hard 3-enemy cap
-- Health, shields, streak attacks, XP, and levels
-- Persistent 3-slot item bag
-- Apples, Shield Potions, Math Bombs, Freeze Pops, and Hint Orbs
-- Random post-battle item drops and guaranteed treasure chests
-- Full-bag replacement choice instead of silent item deletion
+- Progressive ×1–×12 worlds
+- Four heroes with charged Power Moves
+- Multiple-choice battles
+- Randomized 1–3 enemy encounters
+- Manual targeting
+- Enemy-side d6 rolls and unique boss tables
+- Boss summons
+- Health, shields, streaks, XP, items, drops, and treasure chests
 - Replayable completed worlds
-- Browser-saved progress using `localStorage`
-- Keyboard answer shortcuts 1–4
 
-## Power Moves
+## Campaign 2 — Advanced Quest
 
-- 🐉 **Baby Dragon — Fire Burst:** 65 damage to one target
-- 🦊 **Clever Fox — Rapid Strike:** two 30-damage hits to one target
-- 🤖 **Little Robot — Target Lock:** 48 damage plus a Hint Orb effect
-- 🐲 **Tiny Monster — Mega Stomp:** 30 damage to all living enemies
+Advanced Quest unlocks after defeating Professor Pandemonium in Campaign 1. The same hero, XP, level, and carried items continue into Campaign 2.
 
-Five correct normal answers fully charge a Power Move. Activating it starts an untimed Power Question using multiplication tables learned through the current world. A correct answer fires the move; a wrong answer drops ability charge to 50% and does **not** trigger an enemy roll.
+Progression:
 
-## Items
+1. **Double-Digit Dunes** — 2-digit × 1-digit
+2. **Triple Tower** — 3-digit × 1-digit
+3. **Giant Number Grove** — 4-digit × 1-digit
+4. **Partial Product Port** — 2-digit × 2-digit
+5. **Carrying Canyon** — 3-digit × 2-digit
+6. **Place Value Peaks** — 4-digit × 2-digit
+7. **Algorithm Abyss** — 3–4 digit × 3-digit
+8. **Colossal Calculations** — up to 4-digit × 4-digit
 
-Items carry between battles and are saved in the browser. The bag holds 3 items.
+Each Advanced world contains two guided problems and one mastery boss.
 
-- 🍎 Apple — heal 25 HP
-- 🛡️ Shield Potion — grant a shield
-- 💣 Math Bomb — 20 damage to all enemies
-- ❄️ Freeze Pop — skip the next enemy-side roll
-- 🔮 Hint Orb — remove two wrong answers from the next normal question
+### Guided classic algorithm
+
+The stacked multiplication layout stays visible for the whole problem. The game guides the player through:
+
+- multiplication facts inside each column
+- carrying / regrouping
+- writing each partial-product digit
+- placeholder-zero / place-value shifts
+- each partial-product row
+- final addition column by column
+- addition carries / regrouping
+
+Completing a partial-product row triggers an attack. Completing the final addition fires the finishing move.
+
+### Adaptive scaffolding
+
+Advanced Quest separately tracks mastery for:
+
+- multiplication facts
+- carry / regrouping
+- place value
+- final addition
+
+Low mastery uses multiple choice. Medium mastery alternates choices and typed answers. High mastery uses typed answers. A missed typed step automatically brings multiple choice back for that same step instead of resetting the problem.
+
+There are **no timers** in Advanced Quest v3.
+
+## Saved progress
+
+Progress is stored in the browser using `localStorage`, including:
+
+- selected hero
+- XP / level
+- Campaign 1 progress
+- carried items
+- Advanced Quest unlocked/completed worlds
+- Advanced mastery scores
 
 ## Development checks
 
-Node.js is only needed for development checks; it is not required to run the Docker container.
+Node.js is only required for development checks, not for the Nginx runtime.
 
 ```bash
 npm test
@@ -70,22 +96,16 @@ npm run check
 
 ## Files
 
-- `index.html` — application markup
-- `styles.css` — responsive styling, animations, and world themes
-- `game-core.js` — tested battle rules and data shared by browser and tests
-- `app.js` — UI rendering, progression, battle orchestration, and persistence
-- `tests/game-core.test.js` — Node built-in tests for v2 battle rules
-- `Dockerfile` — Nginx image for the static app
-- `docker-compose.yml` — one-command local deployment
-- `nginx.conf` — Nginx static-site configuration
+- `index.html` — application screens and markup
+- `styles.css` — responsive battle, world, and stacked-algorithm styling
+- `game-core.js` — tested Campaign 1 battle rules
+- `advanced-core.js` — tested long-multiplication / adaptive-scaffolding engine
+- `app.js` — UI, progression, orchestration, and persistence
+- `tests/game-core.test.js` — Campaign 1 core tests
+- `tests/advanced-core.test.js` — Advanced Quest arithmetic tests
+- `Dockerfile` — Nginx image
+- `docker-compose.yml` — one-command deployment
+- `nginx.conf` — static-site Nginx config
 - `docs/v2-design.md` — frozen v2 design
-- `docs/v2-implementation-plan.md` — v2 implementation plan
-
-## Port
-
-The compose file maps container port 80 to host port 8080. To use another host port, change:
-
-```yaml
-ports:
-  - "8080:80"
-```
+- `docs/v3-advanced-quest-design.md` — frozen v3 design
+- `docs/v3-implementation-plan.md` — v3 implementation plan

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#6c5ce7" />
-  <title>Multiplication Quest v2</title>
+  <title>Multiplication Quest v3</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body data-theme="home">
@@ -14,7 +14,7 @@
         <div class="brand-mark" aria-hidden="true">⚔️</div>
         <div>
           <h1>Multiplication Quest</h1>
-          <p>Battle goofy monsters. Master your multiplication facts.</p>
+          <p>Battle goofy monsters. Master multiplication facts and the classic algorithm.</p>
         </div>
       </div>
       <div class="profile">
@@ -63,6 +63,120 @@
         </div>
         <div id="worldGrid" class="world-grid"></div>
       </section>
+
+
+      <section id="advancedQuestCard" class="card section-card advanced-entry">
+        <div class="advanced-entry-copy">
+          <span class="advanced-kicker">CAMPAIGN 2</span>
+          <h2>🧮 Advanced Quest</h2>
+          <p id="advancedQuestSummary">Defeat Professor Pandemonium to unlock guided 2–4 digit multiplication.</p>
+          <div id="advancedMasteryPreview" class="mastery-preview"></div>
+        </div>
+        <button id="advancedQuestBtn" class="button button-primary" type="button" disabled>🔒 Advanced Quest</button>
+      </section>
+    </section>
+
+
+
+    <section id="advancedHomeScreen" class="screen stack hidden">
+      <div class="advanced-topline">
+        <button id="advancedHomeBackBtn" class="button button-ghost" type="button">← Main adventure</button>
+        <div><strong>🧮 Advanced Quest</strong><span>Classic stacked multiplication · no timers</span></div>
+      </div>
+
+      <section class="card section-card advanced-story">
+        <span class="advanced-kicker">GIANT NUMBER TERRITORY</span>
+        <h2>The numbers got bigger. Your hero did too.</h2>
+        <p>Work each multiplication problem the classic way: multiply, carry/regroup, shift place value, build partial products, then add them column by column.</p>
+      </section>
+
+      <section class="card section-card">
+        <div class="section-heading">
+          <div><h2>Algorithm Mastery</h2><p>The game automatically adds or removes scaffolding as each skill improves.</p></div>
+          <button id="advancedContinueBtn" class="button button-primary" type="button">▶ Continue Advanced Quest</button>
+        </div>
+        <div id="advancedMasteryGrid" class="mastery-grid"></div>
+      </section>
+
+      <section class="card section-card">
+        <div class="section-heading"><div><h2>Advanced Worlds</h2><p>Two guided battles and one mastery boss per world. Completed worlds stay replayable.</p></div></div>
+        <div id="advancedWorldGrid" class="world-grid advanced-world-grid"></div>
+      </section>
+
+      <section class="card section-card inventory-home">
+        <div class="section-heading"><div><h2>Your Adventure Bag</h2><p>The same items carry into Advanced Quest. Hint Orbs can add scaffolding during a typed step.</p></div><span class="bag-count"><span id="advancedBagCount">0</span>/3</span></div>
+        <div id="advancedHomeInventory" class="inventory-grid"></div>
+      </section>
+    </section>
+
+    <section id="advancedBattleScreen" class="screen stack hidden" aria-live="polite">
+      <div class="advanced-topline">
+        <button id="advancedBattleBackBtn" class="button button-ghost" type="button">← Advanced map</button>
+        <div class="battle-title"><strong id="advancedBattleWorld">🏜️ Double-Digit Dunes</strong><span id="advancedProblemLabel">Guided battle 1 of 3</span></div>
+        <div id="advancedStageDots" class="stage-dots"></div>
+      </div>
+
+      <section class="card advanced-arena">
+        <div class="advanced-fighter">
+          <div id="advancedHeroAvatar" class="fighter">🐉</div>
+          <strong id="advancedHeroName">Baby Dragon</strong>
+        </div>
+        <div class="advanced-clash">
+          <span id="advancedAttackMessage">Solve a row to attack!</span>
+          <div class="meter advanced-enemy-meter"><div id="advancedEnemyHpBar" class="meter-fill enemy-hp" style="width:100%"></div></div>
+        </div>
+        <div id="advancedEnemyWrap" class="advanced-fighter enemy-side">
+          <div id="advancedEnemyAvatar" class="fighter">🪲</div>
+          <strong id="advancedEnemyName">Dune Digit Bug</strong>
+        </div>
+      </section>
+
+      <section class="card algorithm-card">
+        <div class="algorithm-heading">
+          <div><span id="advancedPhaseBadge" class="phase-badge">MULTIPLY</span><h2 id="advancedPrompt">Start with the ones column.</h2><p id="advancedHelper">The highlighted column shows exactly where you are working.</p></div>
+          <div class="problem-chip"><span>Problem</span><strong id="advancedProblemChip">247 × 36</strong></div>
+        </div>
+        <div id="stackedWorkspace" class="stacked-workspace" aria-label="Stacked multiplication workspace"></div>
+        <div id="advancedFeedback" class="advanced-feedback" aria-live="assertive"></div>
+
+        <div id="advancedChoiceArea" class="advanced-answer-area hidden">
+          <div id="advancedChoiceGrid" class="choice-grid"></div>
+          <div class="keyboard-hint">Keyboard: press 1–4</div>
+        </div>
+        <form id="advancedTypedForm" class="advanced-answer-area typed-answer hidden">
+          <label for="advancedTypedInput">Your answer</label>
+          <div class="typed-row"><input id="advancedTypedInput" inputmode="numeric" autocomplete="off" placeholder="Type the step answer" /><button class="button button-primary" type="submit">Check</button></div>
+        </form>
+      </section>
+
+      <div class="stats-grid stats-grid-four">
+        <div class="card stat-card"><span>Step</span><strong id="advancedStepStat">1 / 1</strong></div>
+        <div class="card stat-card"><span>Accuracy</span><strong id="advancedAccuracyStat">100%</strong></div>
+        <div class="card stat-card"><span>Battle XP</span><strong id="advancedXpStat">0</strong></div>
+        <div class="card stat-card"><span>Scaffold</span><strong id="advancedModeStat">Choices</strong></div>
+      </div>
+
+      <section class="card item-belt-card">
+        <div class="item-belt-heading"><strong>🎒 Adventure Bag</strong><span class="small-muted">Hint Orb can turn this step into choices.</span></div>
+        <div id="advancedBattleInventory" class="inventory-grid inventory-grid-battle"></div>
+      </section>
+    </section>
+
+    <section id="advancedResultScreen" class="screen stack hidden">
+      <section class="card result-card">
+        <div id="advancedResultEmoji" class="result-emoji">🧮</div>
+        <h2 id="advancedResultTitle">Problem conquered!</h2>
+        <p id="advancedResultText">You solved it using the classic algorithm.</p>
+        <div class="result-grid">
+          <div class="result-stat"><span>Answer</span><strong id="advancedResultAnswer">8,892</strong></div>
+          <div class="result-stat"><span>Accuracy</span><strong id="advancedResultAccuracy">100%</strong></div>
+          <div class="result-stat"><span>XP earned</span><strong id="advancedResultXp">+0</strong></div>
+        </div>
+      </section>
+      <div class="result-actions">
+        <button id="advancedNextBtn" class="button button-primary" type="button">Next battle →</button>
+        <button id="advancedMapBtn" class="button button-ghost" type="button">Advanced map</button>
+      </div>
     </section>
 
     <section id="battleScreen" class="screen stack hidden" aria-live="polite">
@@ -178,6 +292,7 @@
   </main>
 
   <script src="game-core.js" defer></script>
+  <script src="advanced-core.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>

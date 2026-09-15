@@ -2,7 +2,9 @@
   'use strict';
 
   const Core = window.MQCore;
+  const Advanced = window.MQAdvanced;
   if (!Core) throw new Error('Multiplication Quest core failed to load.');
+  if (!Advanced) throw new Error('Multiplication Quest advanced core failed to load.');
 
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -33,8 +35,25 @@
     { id:6, name:'Final Battle', icon:'🌟', tables:[1,2,3,4,5,6,7,8,9,10,11,12], battles:0, chests:[], boss:{name:'Professor Pandemonium',emoji:'🤓',mood:'calculating something ridiculous',maxHp:310} }
   ];
 
+
+  const advancedWorlds = [
+    { id:1, name:'Double-Digit Dunes', icon:'🏜️', skill:'2-digit × 1-digit', enemy:{name:'Dune Digit Bug',emoji:'🪲'}, boss:{name:'Sandstorm Scorpion',emoji:'🦂'} },
+    { id:2, name:'Triple Tower', icon:'🗼', skill:'3-digit × 1-digit', enemy:{name:'Tower Bat',emoji:'🦇'}, boss:{name:'Carry Colossus',emoji:'🗿'} },
+    { id:3, name:'Giant Number Grove', icon:'🌳', skill:'4-digit × 1-digit', enemy:{name:'Acorn Ogre',emoji:'🌰'}, boss:{name:'Grove Giant',emoji:'🌲'} },
+    { id:4, name:'Partial Product Port', icon:'⚓', skill:'2-digit × 2-digit', enemy:{name:'Harbor Crab',emoji:'🦀'}, boss:{name:'Partial Product Pirate',emoji:'🏴‍☠️'} },
+    { id:5, name:'Carrying Canyon', icon:'🧗', skill:'3-digit × 2-digit', enemy:{name:'Canyon Coyote',emoji:'🐺'}, boss:{name:'Regrouping Ram',emoji:'🐏'} },
+    { id:6, name:'Place Value Peaks', icon:'🏔️', skill:'4-digit × 2-digit', enemy:{name:'Snow Digit',emoji:'🐧'}, boss:{name:'Place Value Yeti',emoji:'🐻‍❄️'} },
+    { id:7, name:'Algorithm Abyss', icon:'🌌', skill:'3–4 digit × 3-digit', enemy:{name:'Abyss Angler',emoji:'🐟'}, boss:{name:'Algorithm Kraken',emoji:'🐙'} },
+    { id:8, name:'Colossal Calculations', icon:'🧮', skill:'up to 4-digit × 4-digit', enemy:{name:'Number Golem',emoji:'🗿'}, boss:{name:'Colossal Calculator',emoji:'🤖'} }
+  ];
+
   const defaultState = () => ({
     heroId:'dragon', xp:0, unlockedWorld:1, completed:new Set(), inventory:[],
+    advancedUnlockedWorld:1, advancedCompleted:new Set(),
+    advancedMastery:{fact:10,carry:10,shift:10,addition:10},
+    advancedCurrentWorldId:1, advancedProblemIndex:0, advancedProblem:null, advancedStepIndex:0,
+    advancedActive:false, advancedBoss:false, advancedFallbackChoice:false, advancedForceChoice:false,
+    advancedRevealed:null, advancedAttempts:0, advancedCorrect:0, advancedBattleXp:0, advancedHits:0,
     currentWorldId:1, battleIndex:0, encounter:null, enemySerial:0,
     active:false, locked:false, targetId:null, playerHp:100, shield:false,
     streak:0, bestStreak:0, abilityCharge:0, battleXp:0, correct:0, attempts:0,
@@ -71,6 +90,11 @@
       state.unlockedWorld=Number.isFinite(saved.unlockedWorld)?clamp(Math.floor(saved.unlockedWorld),1,6):1;
       state.completed=new Set(Array.isArray(saved.completed)?saved.completed.filter(id=>Number.isInteger(id)&&id>=1&&id<=6):[]);
       state.inventory=Array.isArray(saved.inventory)?saved.inventory.filter(id=>Core.ITEMS[id]).slice(0,3):[];
+      state.advancedUnlockedWorld=Number.isFinite(saved.advancedUnlockedWorld)?clamp(Math.floor(saved.advancedUnlockedWorld),1,8):1;
+      state.advancedCompleted=new Set(Array.isArray(saved.advancedCompleted)?saved.advancedCompleted.filter(id=>Number.isInteger(id)&&id>=1&&id<=8):[]);
+      if(saved.advancedMastery && typeof saved.advancedMastery==='object'){
+        for(const skill of ['fact','carry','shift','addition']) state.advancedMastery[skill]=clamp(Math.floor(Number(saved.advancedMastery[skill])||10),0,100);
+      }
     }catch(error){ console.warn('Could not load saved progress:',error); }
   }
 
@@ -78,7 +102,9 @@
     try{
       localStorage.setItem('multiplicationQuestProgress',JSON.stringify({
         heroId:state.heroId,xp:state.xp,unlockedWorld:state.unlockedWorld,
-        completed:[...state.completed],inventory:[...state.inventory]
+        completed:[...state.completed],inventory:[...state.inventory],
+        advancedUnlockedWorld:state.advancedUnlockedWorld,advancedCompleted:[...state.advancedCompleted],
+        advancedMastery:Object.assign({},state.advancedMastery)
       }));
     }catch(error){ console.warn('Could not save progress:',error); }
   }
@@ -87,6 +113,9 @@
 
   function showScreen(name){
     $('#homeScreen').classList.toggle('hidden',name!=='home');
+    $('#advancedHomeScreen').classList.toggle('hidden',name!=='advancedHome');
+    $('#advancedBattleScreen').classList.toggle('hidden',name!=='advancedBattle');
+    $('#advancedResultScreen').classList.toggle('hidden',name!=='advancedResult');
     $('#battleScreen').classList.toggle('hidden',name!=='battle');
     $('#resultScreen').classList.toggle('hidden',name!=='result');
   }
@@ -552,12 +581,274 @@
     offerReward(reward); renderHomeInventory();
   }
 
+  function advancedUnlocked(){ return state.completed.has(6); }
+  function advancedWorld(){ return advancedWorlds.find(w=>w.id===state.advancedCurrentWorldId)||advancedWorlds[0]; }
+  function advancedAccuracy(){ return state.advancedAttempts?Math.round(state.advancedCorrect/state.advancedAttempts*100):100; }
+  function setAdvancedTheme(worldId){ document.body.dataset.theme=worldId?`advanced-${worldId}`:'advanced-map'; }
+
+  function renderMasteryInto(container){
+    const labels={fact:'Facts',carry:'Carry / Regroup',shift:'Place Value',addition:'Final Addition'};
+    container.innerHTML='';
+    for(const skill of ['fact','carry','shift','addition']){
+      const score=state.advancedMastery[skill];
+      const mode=score<35?'Choices':score<70?'Hybrid':'Typed';
+      const card=document.createElement('div');card.className='mastery-card';
+      card.innerHTML=`<div class="mastery-head"><strong>${labels[skill]}</strong><span>${score}% · ${mode}</span></div><div class="meter"><div class="meter-fill mastery-fill" style="width:${score}%"></div></div>`;
+      container.appendChild(card);
+    }
+  }
+
+  function renderAdvancedEntry(){
+    const unlocked=advancedUnlocked();
+    $('#advancedQuestBtn').disabled=!unlocked;
+    $('#advancedQuestBtn').textContent=unlocked?'🧮 Enter Advanced Quest':'🔒 Advanced Quest';
+    $('#advancedQuestSummary').textContent=unlocked
+      ?'The portal is open! Learn 2–4 digit multiplication with the classic stacked method.'
+      :'Defeat Professor Pandemonium to unlock guided 2–4 digit multiplication.';
+    const preview=$('#advancedMasteryPreview');preview.innerHTML='';
+    if(unlocked){
+      for(const [skill,label] of [['fact','Facts'],['carry','Carry'],['shift','Place value'],['addition','Addition']]){
+        const span=document.createElement('span');span.textContent=`${label} ${state.advancedMastery[skill]}%`;preview.appendChild(span);
+      }
+    }
+  }
+
+  function renderAdvancedInventory(container,battleMode=false){
+    container.innerHTML='';
+    for(let i=0;i<3;i+=1){
+      const itemId=state.inventory[i];
+      if(!itemId){
+        const empty=document.createElement('div');empty.className='item-card empty';empty.innerHTML='<span class="item-emoji">➕</span><span><span class="item-name">Empty slot</span><span class="item-desc">Items still carry between both campaigns.</span></span>';container.appendChild(empty);continue;
+      }
+      const item=Core.ITEMS[itemId];
+      const el=document.createElement(battleMode?'button':'div');if(battleMode)el.type='button';el.className=`item-card${battleMode?' usable':''}`;
+      const desc=battleMode&&itemId!=='hint'?'Saved for Battle Adventure.':item.description;
+      el.innerHTML=`<span class="item-emoji">${item.emoji}</span><span><span class="item-name">${item.name}</span><span class="item-desc">${desc}</span></span>`;
+      if(battleMode){
+        const usable=itemId==='hint'&&state.advancedActive&&!state.locked&&currentAdvancedInputMode()==='typed';
+        el.disabled=!usable;
+        if(usable)el.addEventListener('click',()=>useAdvancedHintOrb(i));
+      }
+      container.appendChild(el);
+    }
+    $('#advancedBagCount').textContent=state.inventory.length;
+  }
+
+  function advancedWorldStatus(w){
+    const unlocked=w.id<=state.advancedUnlockedWorld;const complete=state.advancedCompleted.has(w.id);
+    if(!unlocked)return 'Complete the previous Advanced world to unlock.';
+    return complete?'Replay anytime':'2 guided problems → mastery boss';
+  }
+
+  function renderAdvancedWorlds(){
+    const grid=$('#advancedWorldGrid');grid.innerHTML='';
+    advancedWorlds.forEach(w=>{
+      const unlocked=w.id<=state.advancedUnlockedWorld;const complete=state.advancedCompleted.has(w.id);
+      const button=document.createElement('button');button.type='button';button.disabled=!unlocked;button.dataset.advancedWorld=String(w.id);
+      button.className=`world-card advanced-world-card${!unlocked?' locked':''}${complete?' completed':''}`;
+      button.innerHTML=`<div class="world-row"><div class="world-icon">${unlocked?w.icon:'🔒'}</div><div><div class="world-name">Advanced ${w.id} · ${w.name}${complete?'<span class="complete-badge">✓ Complete</span>':''}</div><div class="world-sub">${w.skill}</div><div class="path-preview"><span class="path-node">⚔️</span><span class="path-node">⚔️</span><span class="path-node">👑</span></div><div class="world-status">${advancedWorldStatus(w)}</div></div></div>`;
+      if(unlocked)button.addEventListener('click',()=>enterAdvancedWorld(w.id));grid.appendChild(button);
+    });
+  }
+
+  function advancedContinueWorldId(){
+    for(let i=1;i<=state.advancedUnlockedWorld;i+=1)if(!state.advancedCompleted.has(i))return i;
+    return Math.min(state.advancedUnlockedWorld,8);
+  }
+
+  function showAdvancedHome(){
+    if(!advancedUnlocked()){toast('🔒 Finish Campaign 1 first!');return;}
+    state.active=false;state.advancedActive=false;setAdvancedTheme(null);showScreen('advancedHome');
+    renderMasteryInto($('#advancedMasteryGrid'));renderAdvancedWorlds();renderAdvancedInventory($('#advancedHomeInventory'),false);updateProfile();
+  }
+
+  function enterAdvancedWorld(id){
+    if(!advancedUnlocked()||id>state.advancedUnlockedWorld)return;
+    state.advancedCurrentWorldId=id;state.advancedProblemIndex=0;startAdvancedProblem();
+  }
+
+  function newAdvancedReveal(problem){ return Advanced.createRevealState(problem); }
+
+  function startAdvancedProblem(){
+    const w=advancedWorld();state.active=false;state.advancedActive=true;state.locked=false;state.advancedBoss=state.advancedProblemIndex>=2;
+    state.advancedProblem=Advanced.generateProblem(w.id,{boss:state.advancedBoss});state.advancedStepIndex=0;state.advancedFallbackChoice=false;state.advancedForceChoice=false;
+    state.advancedRevealed=newAdvancedReveal(state.advancedProblem);state.advancedAttempts=0;state.advancedCorrect=0;state.advancedBattleXp=0;state.advancedHits=0;
+    setAdvancedTheme(w.id);showScreen('advancedBattle');renderAdvancedBattleShell();processAdvancedInformationalSteps();
+  }
+
+  function advancedEnemy(){return state.advancedBoss?advancedWorld().boss:advancedWorld().enemy;}
+  function advancedTotalHits(){return state.advancedProblem.partialProducts.length+1;}
+
+  function renderAdvancedStageDots(){
+    const wrap=$('#advancedStageDots');wrap.innerHTML='';
+    for(let i=0;i<3;i+=1){const d=document.createElement('span');d.className=`stage-dot${i<state.advancedProblemIndex?' done':''}${i===state.advancedProblemIndex?' current':''}`;d.textContent=i===2?'👑':i+1;wrap.appendChild(d);}
+  }
+
+  function renderAdvancedBattleShell(){
+    const w=advancedWorld(),h=hero(),enemy=advancedEnemy();
+    $('#advancedBattleWorld').textContent=`${w.icon} ${w.name}`;
+    $('#advancedProblemLabel').textContent=state.advancedBoss?'👑 MASTERY BOSS':'Guided battle '+(state.advancedProblemIndex+1)+' of 3';
+    $('#advancedHeroAvatar').textContent=h.emoji;$('#advancedHeroName').textContent=h.name;$('#advancedEnemyAvatar').textContent=enemy.emoji;$('#advancedEnemyName').textContent=enemy.name;
+    $('#advancedProblemChip').textContent=`${state.advancedProblem.a.toLocaleString()} × ${state.advancedProblem.b.toLocaleString()}`;
+    renderAdvancedStageDots();renderAdvancedWorkspace();renderAdvancedStep();renderAdvancedInventory($('#advancedBattleInventory'),true);updateAdvancedStats();
+  }
+
+  function currentAdvancedStep(){return state.advancedProblem?state.advancedProblem.steps[state.advancedStepIndex]||null:null;}
+
+  function currentAdvancedInputMode(){
+    const step=currentAdvancedStep();if(!step||!step.skill)return 'choice';
+    if(state.advancedFallbackChoice||state.advancedForceChoice)return 'choice';
+    return Advanced.chooseInputMode(state.advancedMastery[step.skill],state.advancedStepIndex);
+  }
+
+  function activeAdvancedColumns(step){
+    if(!step)return {board:null,multiplicand:null,multiplier:null};
+    if(step.phase==='addition'){
+      const board=Number.isInteger(step.column)?step.column:(step.reveal&&Number.isInteger(step.reveal.targetColumn)?step.reveal.targetColumn:null);
+      return {board,multiplicand:null,multiplier:null};
+    }
+    const row=Number.isInteger(step.rowIndex)?step.rowIndex:null;
+    let multiplicand=null;
+    if(step.reveal&&Number.isInteger(step.reveal.digitIndex))multiplicand=step.reveal.digitIndex;
+    else if(step.reveal&&Number.isInteger(step.reveal.targetDigitIndex))multiplicand=step.reveal.targetDigitIndex;
+    else if(Number.isInteger(step.column)&&row!==null)multiplicand=Math.max(0,step.column-row);
+    const board=Number.isInteger(step.column)?step.column:null;
+    return {board,multiplicand,multiplier:row};
+  }
+
+  function paperCellsFromNumber(value,cols,activeRightIndex){
+    const chars=String(value).padStart(cols,' ').split('');
+    return chars.map((ch,index)=>{const right=cols-1-index;const active=right===activeRightIndex?' active-cell':'';return `<span class="paper-cell${active}">${ch===' '?'':ch}</span>`;}).join('');
+  }
+
+  function paperCellsFromMap(map,cols,activeRightIndex){
+    let html='';for(let left=0;left<cols;left+=1){const right=cols-1-left;const val=Object.prototype.hasOwnProperty.call(map,right)?map[right]:'';html+=`<span class="paper-cell${right===activeRightIndex?' active-cell':''}">${val}</span>`;}return html;
+  }
+
+  function renderAdvancedWorkspace(){
+    const p=state.advancedProblem;if(!p)return;const step=currentAdvancedStep();const active=activeAdvancedColumns(step);
+    const maxPartial=Math.max(...p.partialProducts.map(x=>String(x.shiftedValue).length));const cols=Math.max(2,String(p.total).length,String(p.a).length,String(p.b).length,maxPartial);
+    const currentRow=step&&step.phase==='multiply'&&Number.isInteger(step.rowIndex)?step.rowIndex:Math.min(p.partialProducts.length-1,Math.max(0,(step&&step.rowIndex)||0));
+    const carryMap=step&&step.phase==='multiply'?(state.advancedRevealed.multCarries[currentRow]||{}):{};
+    let html=`<div class="paper-row carry-row"><span class="paper-sign">carry</span><div class="paper-digits" style="--paper-cols:${cols}">${paperCellsFromMap(carryMap,cols,active.multiplicand)}</div></div>`;
+    html+=`<div class="paper-row"><span class="paper-sign"></span><div class="paper-digits" style="--paper-cols:${cols}">${paperCellsFromNumber(p.a,cols,active.multiplicand)}</div></div>`;
+    html+=`<div class="paper-row multiplier-row"><span class="paper-sign">×</span><div class="paper-digits" style="--paper-cols:${cols}">${paperCellsFromNumber(p.b,cols,active.multiplier)}</div></div><div class="paper-rule"></div>`;
+    p.partialProducts.forEach((partial,rowIndex)=>{const sign=p.partialProducts.length>1&&rowIndex===p.partialProducts.length-1?'+':'';html+=`<div class="paper-row partial-row"><span class="paper-sign">${sign}</span><div class="paper-digits" style="--paper-cols:${cols}">${paperCellsFromMap(state.advancedRevealed.partialRows[rowIndex],cols,active.board)}</div></div>`;});
+    if(p.partialProducts.length>1){
+      html+=`<div class="paper-rule second-rule"></div>`;
+      html+=`<div class="paper-row carry-row"><span class="paper-sign">carry</span><div class="paper-digits" style="--paper-cols:${cols}">${paperCellsFromMap(state.advancedRevealed.additionCarries,cols,active.board)}</div></div>`;
+      html+=`<div class="paper-row answer-row"><span class="paper-sign"></span><div class="paper-digits" style="--paper-cols:${cols}">${paperCellsFromMap(state.advancedRevealed.additionDigits,cols,active.board)}</div></div>`;
+    }
+    $('#stackedWorkspace').innerHTML=html;
+  }
+
+  function advancedChoices(step){
+    const correct=Number(step.expected);const values=new Set([correct]);
+    if(step.kind==='shift'){[0,1,2,3].forEach(v=>values.add(v));}
+    else{
+      const digitLike=['write','additionWrite','carry','additionCarry'].includes(step.kind)&&correct<=9;
+      const offsets=digitLike?[-2,-1,1,2,3]:[-10,-5,-2,-1,1,2,5,10];
+      shuffle(offsets).forEach(offset=>{if(values.size<4){const v=correct+offset;if(v>=0)values.add(v);}});
+      while(values.size<4){const spread=Math.max(4,Math.ceil(Math.abs(correct)*.35));const v=Math.max(0,correct+Math.floor(Math.random()*(spread*2+1))-spread);values.add(v);}
+    }
+    return shuffle([...values].slice(0,4));
+  }
+
+  function advancedPhaseLabel(step){
+    if(!step)return 'FINISHED';
+    if(step.kind==='shift')return 'PLACE VALUE';
+    if(step.phase==='addition')return 'ADD PARTIAL PRODUCTS';
+    return 'MULTIPLY & CARRY';
+  }
+
+  function renderAdvancedStep(){
+    const step=currentAdvancedStep();if(!step)return;
+    $('#advancedPhaseBadge').textContent=advancedPhaseLabel(step);$('#advancedPrompt').textContent=step.prompt;$('#advancedHelper').textContent=step.helper||'';
+    $('#advancedFeedback').textContent='';
+    const mode=currentAdvancedInputMode();$('#advancedModeStat').textContent=mode==='typed'?'Typed':'Choices';
+    const choiceArea=$('#advancedChoiceArea'),typedForm=$('#advancedTypedForm');choiceArea.classList.toggle('hidden',mode!=='choice');typedForm.classList.toggle('hidden',mode!=='typed');
+    if(mode==='choice'){
+      const grid=$('#advancedChoiceGrid');grid.innerHTML='';advancedChoices(step).forEach((value,index)=>{const b=document.createElement('button');b.type='button';b.className='choice';b.dataset.advancedChoice=String(index);b.dataset.value=String(value);b.innerHTML=`<span class="choice-key">${index+1}</span>${value}`;b.addEventListener('click',()=>submitAdvancedAnswer(value));grid.appendChild(b);});
+    }else{
+      $('#advancedTypedInput').value='';setTimeout(()=>$('#advancedTypedInput').focus(),0);
+    }
+    state.locked=false;renderAdvancedInventory($('#advancedBattleInventory'),true);updateAdvancedStats();renderAdvancedWorkspace();
+  }
+
+  function updateAdvancedStats(){
+    const total=state.advancedProblem?state.advancedProblem.steps.filter(s=>s.expected!==null).length:1;
+    const answered=Math.min(total,state.advancedProblem?state.advancedProblem.steps.slice(0,state.advancedStepIndex).filter(s=>s.expected!==null).length:0);
+    $('#advancedStepStat').textContent=`${Math.min(total,answered+1)} / ${total}`;$('#advancedAccuracyStat').textContent=`${advancedAccuracy()}%`;$('#advancedXpStat').textContent=state.advancedBattleXp;
+    const pct=Math.max(0,100-(state.advancedHits/advancedTotalHits()*100));$('#advancedEnemyHpBar').style.width=`${pct}%`;
+  }
+
+  function applyAdvancedReveal(step){ state.advancedRevealed=Advanced.applyReveal(state.advancedRevealed,step); }
+
+  async function processAdvancedInformationalSteps(){
+    if(!state.advancedActive)return;
+    let step=currentAdvancedStep();
+    while(step&&step.expected===null){
+      state.locked=true;
+      if(step.kind==='rowComplete'){
+        state.advancedHits+=1;state.advancedBattleXp+=20;$('#advancedAttackMessage').textContent=`💥 Partial product ${step.reveal.value.toLocaleString()} complete — attack!`;
+        animateElement($('#advancedHeroAvatar'),'hero-hit');animateElement($('#advancedEnemyWrap'),'enemy-hit');state.advancedStepIndex+=1;renderAdvancedWorkspace();updateAdvancedStats();await sleep(650);
+      }else if(step.kind==='problemComplete'){
+        state.advancedHits=advancedTotalHits();state.advancedBattleXp+=40;$('#advancedAttackMessage').textContent=`🔥 FINISHER! ${state.advancedProblem.total.toLocaleString()}!`;
+        animateElement($('#advancedHeroAvatar'),'power-fire',650);animateElement($('#advancedEnemyWrap'),'enemy-hit',650);state.advancedStepIndex+=1;updateAdvancedStats();await sleep(750);finishAdvancedProblem();return;
+      }else state.advancedStepIndex+=1;
+      step=currentAdvancedStep();
+    }
+    if(step){state.locked=false;renderAdvancedStep();}
+  }
+
+  async function submitAdvancedAnswer(value){
+    if(!state.advancedActive||state.locked)return;const step=currentAdvancedStep();if(!step||step.expected===null)return;
+    const answer=Number(value);if(!Number.isInteger(answer))return;
+    state.locked=true;state.advancedAttempts+=1;const correct=answer===Number(step.expected);
+    if(correct){
+      state.advancedCorrect+=1;state.advancedBattleXp+=5;if(step.skill)state.advancedMastery[step.skill]=Advanced.updateMastery(state.advancedMastery[step.skill],true);
+      applyAdvancedReveal(step);state.advancedStepIndex+=1;state.advancedFallbackChoice=false;state.advancedForceChoice=false;$('#advancedFeedback').textContent='✓ Correct — lock that step in!';$('#advancedFeedback').className='advanced-feedback good-feedback';saveProgress();renderAdvancedWorkspace();updateAdvancedStats();await sleep(350);processAdvancedInformationalSteps();
+    }else{
+      if(step.skill)state.advancedMastery[step.skill]=Advanced.updateMastery(state.advancedMastery[step.skill],false);
+      const wasTyped=currentAdvancedInputMode()==='typed';state.advancedFallbackChoice=true;$('#advancedFeedback').textContent=`Not quite. ${step.helper||'Try that step again.'}${wasTyped?' I brought the choices back for this step.':''}`;$('#advancedFeedback').className='advanced-feedback bad-feedback';saveProgress();state.locked=false;renderAdvancedStep();$('#advancedFeedback').textContent=`Not quite. ${step.helper||'Try that step again.'}${wasTyped?' I brought the choices back for this step.':''}`;$('#advancedFeedback').className='advanced-feedback bad-feedback';updateAdvancedStats();
+    }
+  }
+
+  function useAdvancedHintOrb(index){
+    const itemId=state.inventory[index];if(itemId!=='hint'||currentAdvancedInputMode()!=='typed')return;
+    state.inventory.splice(index,1);state.advancedForceChoice=true;state.advancedFallbackChoice=true;saveProgress();toast('🔮 Hint Orb turned this step into multiple choice!');renderAdvancedStep();renderAdvancedInventory($('#advancedBattleInventory'),true);renderHomeInventory();
+  }
+
+  function finishAdvancedProblem(){
+    if(!state.advancedActive)return;state.advancedActive=false;const w=advancedWorld();const boss=state.advancedBoss;const reward=state.advancedBattleXp+(boss?90+w.id*10:40+w.id*5);state.xp+=reward;
+    if(boss){state.advancedCompleted.add(w.id);if(w.id<8)state.advancedUnlockedWorld=Math.max(state.advancedUnlockedWorld,w.id+1);}
+    saveProgress();updateProfile();showScreen('advancedResult');
+    $('#advancedResultEmoji').textContent=boss?'👑':'🧮';$('#advancedResultTitle').textContent=boss?(w.id===8?'ALGORITHM MASTER!':'Advanced World Complete!'):'Problem conquered!';
+    $('#advancedResultText').textContent=boss?(w.id===8?'You conquered classic multiplication all the way through 4-digit × 4-digit problems!':`${w.boss.name} is defeated. ${advancedWorlds[w.id].name} is unlocked.`):'You built the partial product step-by-step and finished the problem.';
+    $('#advancedResultAnswer').textContent=state.advancedProblem.total.toLocaleString();$('#advancedResultAccuracy').textContent=`${advancedAccuracy()}%`;$('#advancedResultXp').textContent=`+${reward}`;
+    if(boss){$('#advancedNextBtn').textContent=w.id===8?'Replay Colossal Calculations':`Enter ${advancedWorlds[w.id].name} →`;}else $('#advancedNextBtn').textContent=state.advancedProblemIndex===1?'Mastery boss →':'Next guided battle →';
+  }
+
   function resetProgress(){
-    const confirmed=window.confirm('Reset hero, XP, unlocked worlds, completed worlds, and carried items?'); if(!confirmed) return;
+    const confirmed=window.confirm('Reset hero, XP, both campaigns, mastery progress, completed worlds, and carried items?'); if(!confirmed) return;
     localStorage.removeItem('multiplicationQuestProgress'); state=defaultState(); renderAllHome(); toast('Progress reset. Fresh adventure!');
   }
 
-  function renderAllHome(){ setTheme(null); showScreen('home'); renderHeroes(); renderWorlds(); renderHomeInventory(); updateProfile(); }
+  function renderAllHome(){ setTheme(null); showScreen('home'); renderHeroes(); renderWorlds(); renderHomeInventory(); renderAdvancedEntry(); updateProfile(); }
+
+  $('#advancedQuestBtn').addEventListener('click',showAdvancedHome);
+  $('#advancedHomeBackBtn').addEventListener('click',renderAllHome);
+  $('#advancedContinueBtn').addEventListener('click',()=>enterAdvancedWorld(advancedContinueWorldId()));
+  $('#advancedBattleBackBtn').addEventListener('click',showAdvancedHome);
+  $('#advancedMapBtn').addEventListener('click',showAdvancedHome);
+  $('#advancedNextBtn').addEventListener('click',()=>{
+    const w=advancedWorld();
+    if(state.advancedBoss){
+      if(w.id===8){state.advancedProblemIndex=0;startAdvancedProblem();}
+      else{state.advancedCurrentWorldId=w.id+1;state.advancedProblemIndex=0;startAdvancedProblem();}
+    }else{state.advancedProblemIndex+=1;startAdvancedProblem();}
+  });
+  $('#advancedTypedForm').addEventListener('submit',event=>{event.preventDefault();const raw=$('#advancedTypedInput').value.trim();if(!raw){$('#advancedFeedback').textContent='Type an answer for this step.';return;}submitAdvancedAnswer(Number(raw));});
 
   $('#continueBtn').addEventListener('click',()=>enterWorld(continueWorldId()));
   $('#battleBackBtn').addEventListener('click',()=>{state.active=false;renderAllHome();});
@@ -578,6 +869,10 @@
   });
 
   document.addEventListener('keydown',event=>{
+    if(state.advancedActive&&!state.locked&&currentAdvancedInputMode()==='choice'){
+      const index=Number(event.key)-1;const button=$(`[data-advanced-choice="${index}"]`);
+      if(index>=0&&index<4&&button&&!button.disabled){event.preventDefault();submitAdvancedAnswer(Number(button.dataset.value));return;}
+    }
     if(!state.active||state.locked) return;
     const index=Number(event.key)-1;
     if(index>=0&&index<4){event.preventDefault();chooseAnswer(index);}
